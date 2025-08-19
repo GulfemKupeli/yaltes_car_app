@@ -1,0 +1,45 @@
+name: yaltes_car_app
+description: "A new Flutter project."
+
+
+publish_to: 'none' 
+
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.8.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  get: ^4.6.6
+  http: ^0.13.6
+  http_parser: ^4.0.2
+  path: ^1.9.0
+  mobile_scanner: ^6.0.0
+  table_calendar: ^3.0.9
+  shared_preferences: ^2.2.2
+  flutter_local_notifications: ^17.1.2
+  intl: ^0.18.1
+  image_picker: ^1.0.7
+  qr_code_scanner:
+    git:
+      url: https://github.com/juliuscanute/qr_code_scanner.git
+      ref: master
+  curved_navigation_bar: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/logo.png
+    - assets/logo_dark.png
+    - assets/garage.png
+    - assets/garage.png
