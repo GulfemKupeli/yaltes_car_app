@@ -4,8 +4,10 @@ import 'package:yaltes_car_app/admin/admin_pages/admin_edit_car_page.dart';
 import 'package:yaltes_car_app/admin/admin_home_shell.dart';
 import 'package:yaltes_car_app/admin/admin_pages/admin_login_page.dart';
 import 'package:yaltes_car_app/admin/admin_pages/admin_cars_page.dart';
+import 'package:yaltes_car_app/features/location/location_picker_page.dart';
 import 'package:yaltes_car_app/models/vehicle.dart';
 import 'package:yaltes_car_app/pages/car_detail_page.dart';
+import 'package:yaltes_car_app/pages/create_booking_page.dart';
 //import 'package:yaltes_car_app/pages/garage_page.dart';
 import 'package:yaltes_car_app/services/api_client.dart';
 //import 'package:yaltes_car_app/pages/car_detail_page.dart';
@@ -41,8 +43,13 @@ class MyApp extends StatelessWidget {
         AdminLoginPage.route: (_) => const AdminLoginPage(),
         AdminHomeShell.route: (_) => const AdminHomeShell(),
         AdminCarsPage.route: (context) => const AdminCarsPage(),
-        AdminEditCarPage.route: (_) => const AdminEditCarPage(),
+        AdminEditCarPage.route: (_) => const AdminEditCarPage(car: {}),
         AddVehiclePage.route: (context) => const AddVehiclePage(),
+        CreateBookingPage.route: (ctx) {
+          final v = ModalRoute.of(ctx)!.settings.arguments as Vehicle;
+          return CreateBookingPage(vehicle: v);
+        },
+        LocationPickerPage.route: (_) => const LocationPickerPage(),
         CarDetailPage.route: (context) {
           final v = ModalRoute.of(context)!.settings.arguments as Vehicle;
           return CarDetailPage(vehicle: v);

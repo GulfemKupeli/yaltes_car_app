@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:yaltes_car_app/models/vehicle.dart';
 import 'package:yaltes_car_app/pages/car_detail_page.dart';
 import 'package:yaltes_car_app/services/api_client.dart';
-import 'package:yaltes_car_app/app_constants.dart';
 import 'package:yaltes_car_app/utils/url_helpers.dart';
 
 class GaragePage extends StatefulWidget {
@@ -13,7 +12,8 @@ class GaragePage extends StatefulWidget {
 }
 
 class _GaragePageState extends State<GaragePage> {
-  int _filterIndex = 0;
+  static const _navy = Color(0xFF232B74);
+
   bool _loading = false;
   List<Vehicle> _vehicles = [];
 
@@ -28,7 +28,7 @@ class _GaragePageState extends State<GaragePage> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final list = await api.listVehicles(); // List<dynamic>
+      final list = await api.listVehicles();
       _vehicles = list
           .map((e) => Vehicle.fromJson(e as Map<String, dynamic>))
           .toList();
@@ -43,21 +43,12 @@ class _GaragePageState extends State<GaragePage> {
     }
   }
 
-  List<Vehicle> get _filtered {
-    final wanted = switch (_filterIndex) {
-      1 => VehicleStatus.active,
-      2 => VehicleStatus.maintenance,
-      3 => VehicleStatus.retired,
-      _ => null,
-    };
-    if (wanted == null) return _vehicles;
-    return _vehicles.where((v) => v.status == wanted).toList();
-  }
+  List<Vehicle> get _available =>
+      _vehicles.where((v) => v.status == VehicleStatus.active).toList();
 
   @override
   Widget build(BuildContext context) {
     final tt = Theme.of(context).textTheme;
-    final cs = Theme.of(context).colorScheme;
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -67,38 +58,12 @@ class _GaragePageState extends State<GaragePage> {
           Padding(
             padding: const EdgeInsets.only(left: 20),
             child: Text(
-              'Araçlar',
-              style: tt.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+              'Müsait Araçlar',
+              style: tt.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: _navy,
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-
-          Row(
-            children: [
-              _FilterChip(
-                label: 'Tümü',
-                selected: _filterIndex == 0,
-                onSelected: () => setState(() => _filterIndex = 0),
-              ),
-              const SizedBox(width: 8),
-              _FilterChip(
-                label: 'Aktif',
-                selected: _filterIndex == 1,
-                onSelected: () => setState(() => _filterIndex = 1),
-              ),
-              const SizedBox(width: 8),
-              _FilterChip(
-                label: 'Bakımda',
-                selected: _filterIndex == 2,
-                onSelected: () => setState(() => _filterIndex = 2),
-              ),
-              const SizedBox(width: 8),
-              _FilterChip(
-                label: 'Emekli',
-                selected: _filterIndex == 3,
-                onSelected: () => setState(() => _filterIndex = 3),
-              ),
-            ],
           ),
           const SizedBox(height: 16),
 
@@ -107,25 +72,36 @@ class _GaragePageState extends State<GaragePage> {
               padding: EdgeInsets.symmetric(vertical: 48),
               child: Center(child: CircularProgressIndicator()),
             )
-          else if (_filtered.isEmpty)
+          else if (_available.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 48),
               child: Column(
                 children: [
                   const Icon(Icons.directions_car, size: 56),
                   const SizedBox(height: 8),
-                  Text('Kayıt bulunamadı', style: tt.bodyMedium),
+                  Text('Müsait araç bulunamadı', style: tt.bodyMedium),
                 ],
               ),
             )
           else
-            Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              children: [
-                for (final v in _filtered)
-                  _CarCard(v: v, surfaceVariant: cs.surfaceVariant),
-              ],
+            LayoutBuilder(
+              builder: (context, c) {
+                final maxW = c.maxWidth;
+                final cross = maxW >= 1000 ? 4 : (maxW >= 700 ? 3 : 2);
+                return GridView.builder(
+                  physics: const NeverScrollableScrollPhysics(),
+                  shrinkWrap: true,
+                  itemCount: _available.length,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: cross,
+                    crossAxisSpacing: 14,
+                    mainAxisSpacing: 14,
+                    childAspectRatio: 0.82, // kartı dikine biraz uzattık
+                  ),
+                  itemBuilder: (_, i) =>
+                      _CarCard(v: _available[i], titleColor: _navy),
+                );
+              },
             ),
         ],
       ),
@@ -133,116 +109,88 @@ class _GaragePageState extends State<GaragePage> {
   }
 }
 
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onSelected;
-  const _FilterChip({
-    required this.label,
-    required this.selected,
-    required this.onSelected,
-  });
+class _CarCard extends StatelessWidget {
+  final Vehicle v;
+  final Color titleColor;
+  const _CarCard({required this.v, required this.titleColor});
+
+  static const _navy = Color(0xFF232B74);
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return InkWell(
-      borderRadius: BorderRadius.circular(24),
-      onTap: onSelected,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: selected ? cs.secondary : cs.surfaceVariant,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Text(
-          label,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: selected ? cs.onSecondary : cs.onSurfaceVariant,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CarCard extends StatelessWidget {
-  final Vehicle v;
-  final Color surfaceVariant;
-  const _CarCard({required this.v, required this.surfaceVariant});
-
-  @override
-  Widget build(BuildContext context) {
     final imgUrl = resolveImageUrl(v.imageUrl);
 
     return InkWell(
       borderRadius: BorderRadius.circular(16),
-      onTap: () {
-        Navigator.pushNamed(context, CarDetailPage.route, arguments: v);
-      },
-      child: SizedBox(
-        width: 180,
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: surfaceVariant,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  alignment: Alignment.center,
-                  child: imgUrl.isEmpty
-                      ? const Icon(Icons.directions_car, size: 40)
-                      : ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.network(
+      onTap: () =>
+          Navigator.pushNamed(context, CarDetailPage.route, arguments: v),
+      child: Card(
+        clipBehavior: Clip.none,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        margin: EdgeInsets.zero,
+        child: Padding(
+          // kart içinde kenarlık/boşluk
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ---- ÇERÇEVELİ GÖRSEL ----
+              Container(
+                decoration: BoxDecoration(
+                  color: cs.surfaceVariant,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.all(6), // ince çerçeve etkisi
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: AspectRatio(
+                    aspectRatio: 4 / 3, // tutarlı görünüm
+                    child: imgUrl.isEmpty
+                        ? Center(
+                            child: Icon(
+                              Icons.directions_car,
+                              size: 48,
+                              color: cs.outline,
+                            ),
+                          )
+                        : Image.network(
                             imgUrl,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            height: 80,
-                            errorBuilder: (_, __, ___) =>
-                                const Icon(Icons.broken_image_outlined),
+                            fit: BoxFit.cover, // istersen BoxFit.contain yap
+                            errorBuilder: (_, __, ___) => Center(
+                              child: Icon(
+                                Icons.broken_image_outlined,
+                                size: 40,
+                                color: cs.outline,
+                              ),
+                            ),
                           ),
-                        ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  v.plate,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${v.brand} ${v.model}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.circle,
-                        size: 12,
-                        color: v.status.color(context),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        v.status.label,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ],
                   ),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 10),
+
+              // ---- METİNLER (NAVY) ----
+              Text(
+                v.plate,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: _navy,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${v.brand} ${v.model}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: _navy,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
         ),
       ),

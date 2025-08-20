@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:yaltes_car_app/admin/admin_pages/add_vehicle_page.dart';
+import 'package:yaltes_car_app/admin/admin_pages/admin_edit_car_page.dart';
 import 'package:yaltes_car_app/services/api_client.dart';
 import 'package:yaltes_car_app/utils/url_helpers.dart';
 
@@ -13,11 +14,11 @@ class AdminCarsPage extends StatefulWidget {
 
 class _AdminCarsPageState extends State<AdminCarsPage> {
   final _search = TextEditingController();
+  final api = ApiClient.instance;
+
   bool _loading = false;
   int _filterIndex = 0;
   List<Map<String, dynamic>> _cars = [];
-
-  final api = ApiClient.instance;
 
   @override
   void initState() {
@@ -84,24 +85,11 @@ class _AdminCarsPageState extends State<AdminCarsPage> {
     }
   }
 
-  void _editVehicle(Map<String, dynamic> car) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Düzenleme ekranı yakında')));
-  }
-
-  void _createVehicle() {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Araç ekleme ekranı yakında')));
-  }
-
   List<Map<String, dynamic>> get _filtered {
     final q = _search.text.trim().toLowerCase();
     final statusFilter = switch (_filterIndex) {
       1 => 'active',
       2 => 'maintenance',
-
       _ => null,
     };
 
@@ -119,31 +107,6 @@ class _AdminCarsPageState extends State<AdminCarsPage> {
       final matchesStatus = statusFilter == null || status == statusFilter;
       return matchesText && matchesStatus;
     }).toList();
-  }
-
-  Color _statusColor(BuildContext context, String status) {
-    final cs = Theme.of(context).colorScheme;
-    switch (status) {
-      case 'active':
-        return cs.tertiary;
-      case 'maintenance':
-        return cs.secondary;
-      case 'retired':
-        return cs.outline;
-      default:
-        return cs.error;
-    }
-  }
-
-  String _statusLabel(String status) {
-    switch (status) {
-      case 'active':
-        return 'Aktif';
-      case 'maintenance':
-        return 'Bakımda';
-      default:
-        return status;
-    }
   }
 
   @override
@@ -260,127 +223,24 @@ class _AdminCarsPageState extends State<AdminCarsPage> {
                       crossAxisCount: crossCount,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
-                      childAspectRatio: 0.95,
+                      childAspectRatio: 0.7,
                     ),
                     itemBuilder: (_, i) {
                       final car = _filtered[i];
-                      final plate = (car['plate'] ?? '').toString();
-                      final brand = (car['brand'] ?? '').toString();
-                      final model = (car['model'] ?? '').toString();
-                      final status = (car['status'] ?? 'active').toString();
-                      final img = (car['image_url'] ?? '').toString();
                       final id = (car['id'] ?? '').toString();
 
-                      final rawImg = (car['image_url'] ?? '').toString();
-                      final imgUrl = resolveImageUrl(rawImg);
-
-                      debugPrint('ADMIN IMG raw="$rawImg" resolved="$imgUrl"');
-
-                      return Card(
-                        margin: EdgeInsets.zero,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(16),
-                          onTap: () {},
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(context).cardColor,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: imgUrl.isEmpty
-                                        ? const Icon(
-                                            Icons.directions_car,
-                                            size: 48,
-                                          )
-                                        : ClipRRect(
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                            child: Image.network(
-                                              imgUrl,
-                                              fit: BoxFit.cover,
-                                              width: double.infinity,
-                                              errorBuilder: (_, __, ___) =>
-                                                  const Icon(
-                                                    Icons.broken_image_outlined,
-                                                  ),
-                                            ),
-                                          ),
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                Text(
-                                  plate,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '$brand $model',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 6,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: cs.surfaceVariant,
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.circle,
-                                            size: 10,
-                                            color: _statusColor(
-                                              context,
-                                              status,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            _statusLabel(status),
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const Spacer(),
-                                    IconButton(
-                                      tooltip: 'Düzenle',
-                                      onPressed: () => _editVehicle(car),
-                                      icon: const Icon(Icons.edit),
-                                    ),
-                                    IconButton(
-                                      tooltip: 'Sil',
-                                      onPressed: id.isEmpty
-                                          ? null
-                                          : () => _deleteVehicle(id),
-                                      icon: const Icon(Icons.delete_outline),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                      return _AdminCarCard(
+                        car: car,
+                        onEdit: () async {
+                          final ok = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => AdminEditCarPage(car: car),
                             ),
-                          ),
-                        ),
+                          );
+                          if (ok != null && context.mounted) await _load();
+                        },
+                        onDelete: id.isEmpty ? null : () => _deleteVehicle(id),
                       );
                     },
                   );
@@ -425,6 +285,112 @@ class _FilterChip extends StatelessWidget {
             label,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(color: fg),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AdminCarCard extends StatelessWidget {
+  const _AdminCarCard({
+    required this.car,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final Map<String, dynamic> car;
+  final VoidCallback onEdit;
+  final VoidCallback? onDelete;
+
+  static const _navy = Color(0xFF232B74);
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    final plate = (car['plate'] ?? '').toString();
+    final brand = (car['brand'] ?? '').toString();
+    final model = (car['model'] ?? '').toString();
+
+    final rawImg = (car['image_url'] ?? '').toString();
+    final imgUrl = resolveImageUrl(rawImg);
+
+    return Card(
+      clipBehavior: Clip.none,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: cs.surfaceVariant,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.all(6),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: AspectRatio(
+                  aspectRatio: 4 / 3,
+                  child: imgUrl.isEmpty
+                      ? Center(
+                          child: Icon(
+                            Icons.directions_car,
+                            size: 48,
+                            color: cs.outline,
+                          ),
+                        )
+                      : Image.network(
+                          imgUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Center(
+                            child: Icon(
+                              Icons.broken_image_outlined,
+                              size: 40,
+                              color: cs.outline,
+                            ),
+                          ),
+                        ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            Text(
+              plate,
+              style: const TextStyle(fontWeight: FontWeight.w800, color: _navy),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '$brand $model',
+              style: const TextStyle(fontWeight: FontWeight.w600, color: _navy),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+
+            const Spacer(),
+            const SizedBox(height: 8),
+
+            Row(
+              children: [
+                const Spacer(),
+                IconButton(
+                  tooltip: 'Düzenle',
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.edit),
+                ),
+                IconButton(
+                  tooltip: 'Sil',
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_outline),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

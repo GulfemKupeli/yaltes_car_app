@@ -2,7 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:yaltes_car_app/services/api_client.dart';
+import 'package:yaltes_car_app/features/location/location_picker_page.dart';
 
 class AddVehiclePage extends StatefulWidget {
   static const route = '/vehicle/new';
@@ -25,6 +28,9 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
   final _fuelType = TextEditingController();
   final _transmission = TextEditingController();
   final _odometer = TextEditingController();
+
+  String? _locName;
+  double? _lat, _lng;
 
   String _status = 'active';
   File? _pickedImageFile;
@@ -67,8 +73,79 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
     _uploadedImageUrl = url;
   }
 
+  Future<bool> _ensureLocationPermission() async {
+    final serviceOn = await Geolocator.isLocationServiceEnabled();
+    if (!serviceOn) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Konum servisi kapalı. Lütfen açın.')),
+        );
+      }
+      return false;
+    }
+
+    LocationPermission p = await Geolocator.checkPermission();
+    if (p == LocationPermission.denied) {
+      p = await Geolocator.requestPermission();
+    }
+    if (p == LocationPermission.deniedForever) {
+      return false;
+    }
+    return p == LocationPermission.always || p == LocationPermission.whileInUse;
+  }
+
+  Future<void> _pickCurrentLocation() async {
+    final ok = await _ensureLocationPermission();
+    if (!ok) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Konum izni gerekli. Ayarlardan verin.')),
+      );
+      return;
+    }
+
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.best,
+      );
+
+      final placemarks = await placemarkFromCoordinates(
+        pos.latitude,
+        pos.longitude,
+      );
+
+      final p = placemarks.isNotEmpty ? placemarks.first : null;
+
+      final name = [
+        p?.name,
+        p?.thoroughfare,
+        p?.subLocality,
+        p?.locality,
+      ].where((e) => (e ?? '').trim().isNotEmpty).join(', ');
+
+      setState(() {
+        _lat = pos.latitude;
+        _lng = pos.longitude;
+        _locName = name.isNotEmpty ? name : 'Seçilen konum';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Konum alınamadı: $e')));
+    }
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (_locName == null || _lat == null || _lng == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Konum seçmek zorunlu.')));
+      return;
+    }
+
     setState(() => _saving = true);
 
     try {
@@ -79,6 +156,9 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
         'brand': _brand.text.trim(),
         'model': _model.text.trim(),
         'status': _status,
+        'last_location_name': _locName!,
+        'last_location_lat': _lat!,
+        'last_location_lng': _lng!,
       };
 
       void putIfNotEmpty(String key, String val) {
@@ -97,7 +177,6 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
       if (_odometer.text.isNotEmpty) {
         body['current_odometer'] = int.tryParse(_odometer.text);
       }
-
       if (_uploadedImageUrl != null && _uploadedImageUrl!.isNotEmpty) {
         body['image_url'] = _uploadedImageUrl;
       }
@@ -108,7 +187,6 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Araç eklendi')));
-
       Navigator.pop(context, created);
     } catch (e) {
       if (!mounted) return;
@@ -120,6 +198,19 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
     }
   }
 
+  Future<void> _openLocationPicker() async {
+    final res = await Navigator.push<LocationPickResult>(
+      context,
+      MaterialPageRoute(builder: (_) => const LocationPickerPage()),
+    );
+    if (res == null) return;
+    setState(() {
+      _lat = res.lat;
+      _lng = res.lng;
+      _locName = res.name;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -128,7 +219,6 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Araç Ekle')),
       body: Form(
-        // 👈 BURADA
         key: _formKey,
         child: AbsorbPointer(
           absorbing: _saving,
@@ -164,7 +254,35 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
                         ),
                 ),
               ),
+              const SizedBox(height: 16),
 
+              Text('Konum', style: tt.titleMedium),
+              const SizedBox(height: 8),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.place_outlined),
+                title: Text(_locName ?? 'Konum seç (zorunlu)'),
+                subtitle: (_lat != null && _lng != null)
+                    ? Text(
+                        '${_lat!.toStringAsFixed(6)}, ${_lng!.toStringAsFixed(6)}',
+                      )
+                    : null,
+              ),
+              Row(
+                children: [
+                  FilledButton.icon(
+                    onPressed: _saving ? null : _pickCurrentLocation,
+                    icon: const Icon(Icons.my_location),
+                    label: const Text('Konumumu al'),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: _saving ? null : _openLocationPicker,
+                    icon: const Icon(Icons.search),
+                    label: const Text('Adresle bul'),
+                  ),
+                ],
+              ),
               const SizedBox(height: 16),
 
               _Field(
@@ -189,7 +307,6 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
                 validator: (v) =>
                     (v == null || v.trim().isEmpty) ? 'Model gerekli' : null,
               ),
-
               Row(
                 children: [
                   Expanded(
@@ -245,7 +362,6 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
               ),
 
               const SizedBox(height: 8),
-
               Text('Durum', style: tt.titleSmall),
               const SizedBox(height: 6),
               Wrap(
@@ -260,11 +376,6 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
                     label: const Text('Bakımda'),
                     selected: _status == 'maintenance',
                     onSelected: (_) => setState(() => _status = 'maintenance'),
-                  ),
-                  ChoiceChip(
-                    label: const Text('Emekli'),
-                    selected: _status == 'retired',
-                    onSelected: (_) => setState(() => _status = 'retired'),
                   ),
                 ],
               ),

@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:yaltes_car_app/app_constants.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:path/path.dart' as p;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:yaltes_car_app/app_constants.dart';
 
 class ApiClient {
   ApiClient._internal();
@@ -17,30 +18,60 @@ class ApiClient {
 
   String get _base => AppConstants.BASE_URL;
 
-  // header
+  dynamic _json(http.Response r) => jsonDecode(utf8.decode(r.bodyBytes));
+  String _text(http.Response r) => utf8.decode(r.bodyBytes);
+  bool _ok(http.Response r) => r.statusCode >= 200 && r.statusCode < 300;
+
   Map<String, String> _headers({bool json = true}) => {
-    if (json) 'Content-Type': 'application/json',
-    'accept': 'application/json',
+    if (json) 'Content-Type': 'application/json; charset=utf-8',
+    'accept': 'application/json; charset=utf-8',
     if (_token != null && _token!.isNotEmpty) 'Authorization': 'Bearer $_token',
   };
 
-  // giriş işlemleri
   Future<void> login(String email, String password) async {
     final r = await http.post(
       Uri.parse('$_base/auth/login'),
       headers: _headers(),
       body: jsonEncode({'email': email, 'password': password}),
     );
-    if (r.statusCode == 200) {
-      _token = (jsonDecode(r.body) as Map)['access_token'] as String?;
+
+    if (_ok(r)) {
+      final map = _json(r) as Map<String, dynamic>;
+      _token = map['access_token'] as String?;
+      await saveToken();
       return;
     }
+
+    final msg = _text(r);
     if (r.statusCode == 422) {
-      debugPrint('VALIDATION ERROR: ${r.body}');
-      throw Exception('Validation failed: ${r.body}');
+      debugPrint('VALIDATION ERROR: $msg');
+      throw Exception('Validation failed: $msg');
     }
-    debugPrint('LOGIN ERROR BODY: ${r.body}');
-    throw Exception('Login failed with status ${r.statusCode}: ${r.body}');
+    debugPrint('LOGIN ERROR BODY: $msg');
+    throw Exception('Login failed with status ${r.statusCode}: $msg');
+  }
+
+  Future<void> adminLogin(String email, String password) async {
+    final r = await http.post(
+      Uri.parse('$_base/admin/login'),
+      headers: _headers(),
+      body: jsonEncode({'email': email, 'password': password}),
+    );
+
+    if (_ok(r)) {
+      final map = _json(r) as Map<String, dynamic>;
+      _token = map['access_token'] as String?;
+      await saveToken();
+      return;
+    }
+
+    final msg = _text(r);
+    if (r.statusCode == 422) {
+      debugPrint('ADMIN VALIDATION ERROR: $msg');
+      throw Exception('Validation failed: $msg');
+    }
+    debugPrint('ADMIN LOGIN ERROR BODY: $msg');
+    throw Exception('Admin login failed with status ${r.statusCode}: $msg');
   }
 
   Future<Map<String, dynamic>> register({
@@ -57,32 +88,10 @@ class ApiClient {
         'password': password,
       }),
     );
-    if (r.statusCode == 200) return jsonDecode(r.body) as Map<String, dynamic>;
-    if (r.statusCode == 422) throw Exception('Validation failed: ${r.body}');
-    if (r.statusCode == 400) throw Exception(jsonDecode(r.body).toString());
-    throw Exception('Register failed with status ${r.statusCode}: ${r.body}');
-  }
-
-  Future<void> adminLogin(String email, String password) async {
-    final r = await http.post(
-      Uri.parse('$_base/admin/login'),
-      headers: _headers(),
-      body: jsonEncode({'email': email, 'password': password}),
-    );
-    if (r.statusCode == 200) {
-      _token =
-          (jsonDecode(r.body) as Map<String, dynamic>)['access_token']
-              as String?;
-      return;
-    }
-    if (r.statusCode == 422) {
-      debugPrint('ADMIN VALIDATION ERROR: ${r.body}');
-      throw Exception('Validation failed: ${r.body}');
-    }
-    debugPrint('ADMIN LOGIN ERROR BODY: ${r.body}');
-    throw Exception(
-      'Admin login failed with status ${r.statusCode}: ${r.body}',
-    );
+    if (_ok(r)) return _json(r) as Map<String, dynamic>;
+    if (r.statusCode == 422) throw Exception('Validation failed: ${_text(r)}');
+    if (r.statusCode == 400) throw Exception(_text(r));
+    throw Exception('Register failed with status ${r.statusCode}: ${_text(r)}');
   }
 
   Future<Map<String, dynamic>> me() async {
@@ -90,11 +99,10 @@ class ApiClient {
       Uri.parse('$_base/me'),
       headers: _headers(json: false),
     );
-    if (r.statusCode != 200) throw Exception('Me failed: ${r.body}');
-    return jsonDecode(r.body) as Map<String, dynamic>;
+    if (!_ok(r)) throw Exception('Me failed: ${_text(r)}');
+    return _json(r) as Map<String, dynamic>;
   }
 
-  // token muhabbeti
   static const _kTokenKey = 'jwt';
 
   Future<void> saveToken() async {
@@ -122,14 +130,13 @@ class ApiClient {
 
   Future<void> logout() => clearToken();
 
-  //araç işleöleri
   Future<List<dynamic>> listVehicles() async {
     final r = await http.get(
       Uri.parse('$_base/vehicles'),
       headers: _headers(json: false),
     );
-    if (r.statusCode != 200) throw Exception('Vehicles error: ${r.body}');
-    return jsonDecode(r.body) as List<dynamic>;
+    if (!_ok(r)) throw Exception('Vehicles error: ${_text(r)}');
+    return _json(r) as List<dynamic>;
   }
 
   Future<Map<String, dynamic>> getVehicle(String id) async {
@@ -137,8 +144,8 @@ class ApiClient {
       Uri.parse('$_base/vehicles/$id'),
       headers: _headers(json: false),
     );
-    if (r.statusCode != 200) throw Exception('Get vehicle error: ${r.body}');
-    return jsonDecode(r.body) as Map<String, dynamic>;
+    if (!_ok(r)) throw Exception('Get vehicle error: ${_text(r)}');
+    return _json(r) as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> createVehicle(Map<String, dynamic> body) async {
@@ -147,8 +154,8 @@ class ApiClient {
       headers: _headers(),
       body: jsonEncode(body),
     );
-    if (r.statusCode != 200) throw Exception('Create vehicle error: ${r.body}');
-    return jsonDecode(r.body) as Map<String, dynamic>;
+    if (!_ok(r)) throw Exception('Create vehicle error: ${_text(r)}');
+    return _json(r) as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> updateVehicle(
@@ -160,8 +167,8 @@ class ApiClient {
       headers: _headers(),
       body: jsonEncode(body),
     );
-    if (r.statusCode != 200) throw Exception('Update vehicle error: ${r.body}');
-    return jsonDecode(r.body) as Map<String, dynamic>;
+    if (!_ok(r)) throw Exception('Update vehicle error: ${_text(r)}');
+    return _json(r) as Map<String, dynamic>;
   }
 
   Future<void> deleteVehicle(String id) async {
@@ -169,17 +176,16 @@ class ApiClient {
       Uri.parse('$_base/vehicles/$id'),
       headers: _headers(json: false),
     );
-    if (r.statusCode != 200) throw Exception('Delete vehicle error: ${r.body}');
+    if (!_ok(r)) throw Exception('Delete vehicle error: ${_text(r)}');
   }
 
-  // randevus
   Future<List<dynamic>> listBookings() async {
     final r = await http.get(
       Uri.parse('$_base/bookings'),
       headers: _headers(json: false),
     );
-    if (r.statusCode != 200) throw Exception('Bookings error: ${r.body}');
-    return jsonDecode(r.body) as List<dynamic>;
+    if (!_ok(r)) throw Exception('Bookings error: ${_text(r)}');
+    return _json(r) as List<dynamic>;
   }
 
   Future<Map<String, dynamic>> approveBooking(String id) async {
@@ -187,9 +193,8 @@ class ApiClient {
       Uri.parse('$_base/bookings/$id/approve'),
       headers: _headers(json: false),
     );
-    if (r.statusCode != 200)
-      throw Exception('Approve booking error: ${r.body}');
-    return jsonDecode(r.body) as Map<String, dynamic>;
+    if (!_ok(r)) throw Exception('Approve booking error: ${_text(r)}');
+    return _json(r) as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> cancelBooking(String id) async {
@@ -197,8 +202,8 @@ class ApiClient {
       Uri.parse('$_base/bookings/$id/cancel'),
       headers: _headers(json: false),
     );
-    if (r.statusCode != 200) throw Exception('Cancel booking error: ${r.body}');
-    return jsonDecode(r.body) as Map<String, dynamic>;
+    if (!_ok(r)) throw Exception('Cancel booking error: ${_text(r)}');
+    return _json(r) as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> completeBooking(String id) async {
@@ -206,12 +211,33 @@ class ApiClient {
       Uri.parse('$_base/bookings/$id/complete'),
       headers: _headers(json: false),
     );
-    if (r.statusCode != 200)
-      throw Exception('Complete booking error: ${r.body}');
-    return jsonDecode(r.body) as Map<String, dynamic>;
+    if (!_ok(r)) throw Exception('Complete booking error: ${_text(r)}');
+    return _json(r) as Map<String, dynamic>;
   }
 
-  //müsaitlik
+  Future<Map<String, dynamic>> createBooking({
+    required String vehicleId,
+    required DateTime startsAt,
+    required DateTime endsAt,
+    String? purpose,
+  }) async {
+    final body = {
+      'vehicle_id': vehicleId,
+      'starts_at': startsAt.toUtc().toIso8601String(),
+      'ends_at': endsAt.toUtc().toIso8601String(),
+      if (purpose != null && purpose.isNotEmpty) 'purpose': purpose,
+    };
+    final r = await http.post(
+      Uri.parse('$_base/bookings'),
+      headers: _headers(),
+      body: jsonEncode(body),
+    );
+    if (!_ok(r)) {
+      throw Exception('Create booking error ${r.statusCode}: ${_text(r)}');
+    }
+    return _json(r) as Map<String, dynamic>;
+  }
+
   Future<List<dynamic>> availability(DateTime from, DateTime to) async {
     final frm = Uri.encodeQueryComponent(from.toUtc().toIso8601String());
     final end = Uri.encodeQueryComponent(to.toUtc().toIso8601String());
@@ -219,20 +245,19 @@ class ApiClient {
       Uri.parse('$_base/availability?frm=$frm&to=$end'),
       headers: _headers(json: false),
     );
-    if (r.statusCode != 200) throw Exception('Availability error: ${r.body}');
-    return jsonDecode(r.body) as List<dynamic>;
+    if (!_ok(r)) throw Exception('Availability error: ${_text(r)}');
+    return _json(r) as List<dynamic>;
   }
 
-  // araç görsli yükleme
   Future<String> uploadImage(File file) async {
-    final uri = Uri.parse('${AppConstants.BASE_URL}/upload');
+    final uri = Uri.parse('$_base/upload');
 
     final req = http.MultipartRequest('POST', uri);
-
     if (token != null && token!.isNotEmpty) {
       req.headers['Authorization'] = 'Bearer $token';
     }
-    req.headers['Accept'] = 'application/json';
+
+    req.headers['Accept'] = 'application/json; charset=utf-8';
 
     final ext = p.extension(file.path).toLowerCase();
     final mediaType = (ext == '.png')
@@ -251,13 +276,13 @@ class ApiClient {
     final streamed = await req.send();
     final res = await http.Response.fromStream(streamed);
     debugPrint(
-      'UPLOAD RESP ${res.statusCode} ${res.headers['content-type']} ${res.body}',
+      'UPLOAD RESP ${res.statusCode} ${res.headers['content-type']} ${_text(res)}',
     );
 
-    if (res.statusCode != 200) {
-      throw Exception('Upload error: ${res.statusCode} ${res.body}');
+    if (!_ok(res)) {
+      throw Exception('Upload error: ${res.statusCode} ${_text(res)}');
     }
-    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    final data = _json(res) as Map<String, dynamic>;
     return data['url'] as String;
   }
 }

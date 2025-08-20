@@ -1,82 +1,93 @@
 import 'package:flutter/material.dart';
 import 'package:yaltes_car_app/app_constants.dart';
 import 'package:yaltes_car_app/models/vehicle.dart';
-import 'package:yaltes_car_app/utils/url_helpers.dart';
+import 'package:yaltes_car_app/pages/create_booking_page.dart';
 
 class CarDetailPage extends StatelessWidget {
   static const route = '/car_detail';
   final Vehicle vehicle;
   const CarDetailPage({super.key, required this.vehicle});
 
+  static const _navy = Color(0xFF232B74);
+
+  String _resolveImg(String? raw) {
+    if (raw == null || raw.isEmpty) return '';
+    if (raw.startsWith('http')) return raw;
+    return '${AppConstants.BASE_URL}$raw';
+  }
+
   @override
   Widget build(BuildContext context) {
     final v = vehicle;
-    final imgUrl = resolveImageUrl(v.imageUrl);
+    final imgUrl = _resolveImg(v.imageUrl);
 
     return Scaffold(
-      appBar: AppBar(title: Text(v.plate.isNotEmpty ? v.plate : 'Araç Detayı')),
+      appBar: AppBar(
+        title: Text(v.plate.isNotEmpty ? v.plate : 'Araç Detayı'),
+        centerTitle: true,
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Container(
-            height: 220,
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceVariant,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            alignment: Alignment.center,
-            child: (imgUrl.isEmpty)
-                ? const Icon(Icons.directions_car, size: 80)
-                : ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
+          // Büyük kapak görsel
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: imgUrl.isEmpty
+                  ? Container(
+                      color: Theme.of(context).colorScheme.surfaceVariant,
+                      alignment: Alignment.center,
+                      child: const Icon(Icons.directions_car, size: 80),
+                    )
+                  : Image.network(
                       imgUrl,
                       fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: 220,
-                      errorBuilder: (_, __, ___) =>
-                          const Icon(Icons.broken_image_outlined, size: 80),
+                      errorBuilder: (_, __, ___) => Container(
+                        color: Theme.of(context).colorScheme.surfaceVariant,
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.broken_image_outlined,
+                          size: 64,
+                        ),
+                      ),
                     ),
-                  ),
+            ),
           ),
           const SizedBox(height: 16),
 
           Text(
             '${v.brand} ${v.model}${v.modelYear != null ? " (${v.modelYear})" : ""}',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 6),
-
-          Row(
-            children: [
-              Icon(Icons.circle, size: 12, color: v.status.color(context)),
-              const SizedBox(width: 8),
-              Text(
-                v.status.label,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ],
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: _navy,
+            ),
           ),
 
           const SizedBox(height: 16),
           const Divider(),
 
+          // Özellikler
           _kv('Plaka', v.plate),
           _kv('Renk', v.color ?? ''),
           _kv('Koltuk', v.seats?.toString() ?? ''),
           _kv('Yakıt', v.fuelType ?? ''),
           _kv('Vites', v.transmission ?? ''),
-          _kv('KM', v.currentOdometer?.toString() ?? ''),
+          _kv('Kilometre', v.currentOdometer?.toString() ?? ''),
+          const SizedBox(height: 8),
+          _kv('Son Bırakıldığı Yer', v.lastLocationName ?? ''),
 
           const SizedBox(height: 24),
           FilledButton.icon(
             onPressed: () {
-              //rezervasyon şeyi
+              Navigator.pushNamed(
+                context,
+                CreateBookingPage.route,
+                arguments: vehicle, // Vehicle modeli
+              );
             },
             icon: const Icon(Icons.event_available),
-            label: const Text('Rezervasyon Yap (yakında)'),
+            label: const Text('Rezervasyon Yap'),
           ),
         ],
       ),
@@ -90,10 +101,18 @@ class CarDetailPage extends StatelessWidget {
       child: Row(
         children: [
           SizedBox(
-            width: 120,
-            child: Text(k, style: const TextStyle(fontWeight: FontWeight.w600)),
+            width: 160,
+            child: Text(
+              k,
+              style: const TextStyle(fontWeight: FontWeight.w700, color: _navy),
+            ),
           ),
-          Expanded(child: Text(v)),
+          Expanded(
+            child: Text(
+              v,
+              style: const TextStyle(fontWeight: FontWeight.w500, color: _navy),
+            ),
+          ),
         ],
       ),
     );

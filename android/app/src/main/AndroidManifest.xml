@@ -1,9 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.yaltes_car_app">
 
-    <!-- İzinler manifest kökünde olmalı -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+
 
     <application
         android:label="yaltes_car_app"
@@ -32,10 +34,10 @@
             </intent-filter>
         </activity>
 
-        <!-- Flutter embedding bilgisi application içinde olmalı -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+       
 
     </application>
 
