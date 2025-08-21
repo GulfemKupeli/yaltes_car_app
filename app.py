@@ -1,5 +1,5 @@
 import uuid, datetime as dt
-from typing import List, Optional
+from typing import List, Optional, Literal
 import enum, os
 import logging
 from pathlib import Path
@@ -22,6 +22,8 @@ from sqlalchemy import (create_engine, Column, String, Boolean, Enum, Text, Inte
 from sqlalchemy.dialects.postgresql import UUID as PGUUID, TSRANGE
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
 from passlib.hash import bcrypt
+from sqlalchemy import (create_engine, Column, String, Boolean, Enum, Text, Integer,
+                        TIMESTAMP, ForeignKey, CheckConstraint, func, text, and_, Float)
 
 BASE_DIR = Path(__file__).parent
 STATIC_DIR = BASE_DIR / "static"
@@ -67,7 +69,7 @@ class BookingStatus(str, enum.Enum):
 class VehicleStatus(str, enum.Enum):
     active = "active"
     maintenance = "maintenance"
-    retired = "retired"
+
 
 
 class User(Base):
@@ -106,6 +108,12 @@ class Vehicle(Base):
     current_odometer = Column(Integer)
     image_url = Column(Text)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    last_location_name = Column(String, nullable=False)      # Örn: "Büyük Otopark - A5"
+    last_location_lat = Column(Float, nullable=False)        # 41.0...
+    last_location_lng = Column(Float, nullable=False)        # 29.0...
+    last_location_updated_at = Column(
+        TIMESTAMP(timezone=True), server_default=func.now()
+    )
 
 class VehicleBlockout(Base):
     __tablename__ = "vehicle_blockouts"
@@ -221,6 +229,10 @@ class VehicleIn(BaseModel):
     transmission: Optional[str] = None
     current_odometer: Optional[int] = None
     image_url: Optional[str] = None
+    last_location_name: str
+    last_location_lat: float
+    last_location_lng: float
+    
 
 class VehicleUpdate(BaseModel):
     plate: Optional[str] = None
@@ -234,10 +246,14 @@ class VehicleUpdate(BaseModel):
     current_odometer: Optional[int] = None
     image_url: Optional[str] = None
     status: Optional[VehicleStatus] = None
+    last_location_name: Optional[str] = None
+    last_location_lat: Optional[float] = None
+    last_location_lng: Optional[float] = None
 
 class VehicleOut(VehicleIn):
     id: uuid.UUID
     status: VehicleStatus
+    last_location_updated_at: Optional[dt.datetime] = None
     class Config: from_attributes = True
 
 class BookingIn(BaseModel):
@@ -365,6 +381,70 @@ async def log_requests(request, call_next):
     return response
 
 # Araçapi
+# ===== Araç Takvimi (busy slot'lar) =====
+from typing import Literal
+
+@app.get("/vehicles/{vehicle_id}/calendar")
+def vehicle_calendar(
+    vehicle_id: uuid.UUID,
+    month: str,                                     # "YYYY-MM"
+    db: Session = Depends(get_db),
+):
+    # month parse
+    try:
+        year_str, month_str = month.split("-")
+        year = int(year_str)
+        mon = int(month_str)
+        assert 1 <= mon <= 12
+    except Exception:
+        raise HTTPException(status_code=400, detail="month must be YYYY-MM")
+
+    # ayın başlangıç/bitişi (UTC veriyoruz; DB'niz tz-aware)
+    start = dt.datetime(year, mon, 1, tzinfo=dt.timezone.utc)
+    if mon == 12:
+        end = dt.datetime(year + 1, 1, 1, tzinfo=dt.timezone.utc)
+    else:
+        end = dt.datetime(year, mon + 1, 1, tzinfo=dt.timezone.utc)
+
+    # Bu aralıkla çakışan booking'ler (pending/approved)
+    bookings = (
+        db.query(Booking)
+        .filter(
+            Booking.vehicle_id == vehicle_id,
+            Booking.status.in_([BookingStatus.pending, BookingStatus.approved]),
+            Booking.starts_at < end,
+            Booking.ends_at > start,
+        )
+        .all()
+    )
+
+    # Bu aralıkla çakışan blockout'lar
+    blockouts = (
+        db.query(VehicleBlockout)
+        .filter(
+            VehicleBlockout.vehicle_id == vehicle_id,
+            VehicleBlockout.starts_at < end,
+            VehicleBlockout.ends_at > start,
+        )
+        .all()
+    )
+
+    busy = []
+    for b in bookings:
+        busy.append({
+            "start": b.starts_at.isoformat(),
+            "end": b.ends_at.isoformat(),
+            "type": "booking",
+        })
+    for bo in blockouts:
+        busy.append({
+            "start": bo.starts_at.isoformat(),
+            "end": bo.ends_at.isoformat(),
+            "type": "blockout",
+        })
+
+    return {"busy": busy}
+
 @app.get("/vehicles", response_model=List[VehicleOut])
 def list_vehicles(db: Session = Depends(get_db)):
     return db.query(Vehicle).order_by(Vehicle.brand, Vehicle.model).all()
@@ -385,8 +465,11 @@ def create_vehicle(data: VehicleIn, _: User = Depends(admin_required), db: Sessi
 def update_vehicle(vehicle_id: uuid.UUID, data: VehicleUpdate, _: User = Depends(admin_required), db: Session = Depends(get_db)):
     v = db.get(Vehicle, vehicle_id)
     if not v: raise HTTPException(404, "Vehicle not found")
-    for k, val in data.dict(exclude_unset=True).items():
+    payload = data.dict(exclude_unset=True)
+    for k, val in payload.items():
         setattr(v, k, val)
+    if any(k in payload for k in ("last_location_name","last_location_lat","last_location_lng")):
+        v.last_location_updated_at = func.now()
     db.commit(); db.refresh(v)
     return v
 
@@ -506,3 +589,4 @@ def delete_blockout(blockout_id: uuid.UUID, _: User = Depends(admin_required), d
     if not bo: raise HTTPException(404, "Blockout not found")
     db.delete(bo); db.commit()
     return {"deleted": True}
+
