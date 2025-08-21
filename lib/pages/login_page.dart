@@ -284,11 +284,11 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 190),
+                      const SizedBox(height: 90),
                       Row(
                         children: [
                           Padding(
-                            padding: const EdgeInsets.only(left: 230.0),
+                            padding: const EdgeInsets.only(left: 200.0),
                             child: TextButton.icon(
                               onPressed: () {
                                 Navigator.pushNamed(

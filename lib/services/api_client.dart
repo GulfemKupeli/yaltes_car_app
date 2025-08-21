@@ -7,6 +7,7 @@ import 'package:http_parser/http_parser.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yaltes_car_app/app_constants.dart';
+import 'package:yaltes_car_app/models/bookings.dart';
 
 class ApiClient {
   ApiClient._internal();
@@ -49,6 +50,36 @@ class ApiClient {
     }
     debugPrint('LOGIN ERROR BODY: $msg');
     throw Exception('Login failed with status ${r.statusCode}: $msg');
+  }
+
+  Future<Map<String, dynamic>> updateMe({
+    String? fullName,
+    String? email,
+    String? password,
+  }) async {
+    final body = <String, dynamic>{};
+    void putIfNotEmpty(String k, String? v) {
+      final t = (v ?? '').trim();
+      if (t.isNotEmpty) body[k] = t;
+    }
+
+    putIfNotEmpty('full_name', fullName);
+    putIfNotEmpty('email', email);
+    putIfNotEmpty('password', password);
+
+    final r = await http.put(
+      Uri.parse('$_base/me'),
+      headers: _headers(),
+      body: jsonEncode(body),
+    );
+
+    if (!_ok(r)) {
+      if (r.statusCode == 401 || r.statusCode == 403) {
+        await clearToken();
+      }
+      throw Exception('Update me failed (${r.statusCode}): ${_text(r)}');
+    }
+    return _json(r) as Map<String, dynamic>;
   }
 
   Future<void> adminLogin(String email, String password) async {
@@ -284,5 +315,31 @@ class ApiClient {
     }
     final data = _json(res) as Map<String, dynamic>;
     return data['url'] as String;
+  }
+
+  Future<List<Booking>> myBookings() async {
+    final r = await http.get(
+      Uri.parse('$_base/bookings/me'),
+      headers: _headers(json: false),
+    );
+    if (!_ok(r)) {
+      throw Exception('My bookings error: ${_text(r)}');
+    }
+    final arr = _json(r) as List<dynamic>;
+    return arr.map((e) => Booking.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> registerPushToken(String token, {String? platform}) async {
+    final r = await http.post(
+      Uri.parse('$_base/devices/register'),
+      headers: _headers(),
+      body: jsonEncode({
+        'token': token,
+        if (platform != null) 'platform': platform,
+      }),
+    );
+    if (!_ok(r)) {
+      throw Exception('Push token register failed: ${_text(r)}');
+    }
   }
 }

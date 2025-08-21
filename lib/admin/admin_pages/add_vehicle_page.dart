@@ -230,7 +230,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
                 child: Container(
                   height: 190,
                   decoration: BoxDecoration(
-                    color: cs.surfaceVariant,
+                    color: cs.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   alignment: Alignment.center,

@@ -158,7 +158,7 @@ class _AdminCarsPageState extends State<AdminCarsPage> {
                 filled: true,
                 fillColor:
                     Theme.of(context).inputDecorationTheme.fillColor ??
-                    cs.surfaceVariant,
+                    cs.surfaceContainerHighest,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 14,
                   vertical: 14,
@@ -266,7 +266,7 @@ class _FilterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final bg = selected ? cs.secondary : cs.surfaceVariant;
+    final bg = selected ? cs.secondary : cs.surfaceContainerHighest;
     final fg = selected ? cs.onSecondary : cs.onSurfaceVariant;
 
     return Material(
@@ -326,7 +326,7 @@ class _AdminCarCard extends StatelessWidget {
           children: [
             Container(
               decoration: BoxDecoration(
-                color: cs.surfaceVariant,
+                color: cs.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12),
               ),
               padding: const EdgeInsets.all(6),

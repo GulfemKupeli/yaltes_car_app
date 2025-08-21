@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yaltes_car_app/pages/calendar_page.dart';
 import 'garage_page.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 
@@ -46,7 +47,7 @@ class _HomeShellState extends State<HomeShell> {
 
       body: IndexedStack(
         index: _index,
-        children: const [_QrPlaceholder(), GaragePage(), _CalPlaceholder()],
+        children: const [_QrPlaceholder(), GaragePage(), CalendarPage()],
       ),
 
       bottomNavigationBar: CurvedNavigationBar(
@@ -57,7 +58,7 @@ class _HomeShellState extends State<HomeShell> {
         animationDuration: const Duration(milliseconds: 300),
         items: const [
           Icon(Icons.qr_code_2_outlined, size: 50, color: Colors.white),
-          const ImageIcon(
+          ImageIcon(
             AssetImage('assets/garage.png'),
             size: 50,
             color: Colors.white,
@@ -98,14 +99,5 @@ class _QrPlaceholder extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-class _CalPlaceholder extends StatelessWidget {
-  const _CalPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(child: Text('Takvim (yakında)'));
   }
 }

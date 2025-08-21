@@ -72,12 +72,12 @@ class Vehicle {
   });
 
   factory Vehicle.fromJson(Map<String, dynamic> j) {
-    double? _toDouble(dynamic v) => v == null
+    double? toDouble(dynamic v) => v == null
         ? null
         : (v is num ? v.toDouble() : double.tryParse(v.toString()));
-    int? _toInt(dynamic v) =>
+    int? toInt(dynamic v) =>
         v == null ? null : (v is num ? v.toInt() : int.tryParse(v.toString()));
-    DateTime? _toDate(dynamic v) {
+    DateTime? toDate(dynamic v) {
       if (v == null) return null;
       try {
         return DateTime.parse(v.toString());
@@ -92,18 +92,18 @@ class Vehicle {
       brand: (j['brand'] ?? '').toString(),
       model: (j['model'] ?? '').toString(),
       color: j['color']?.toString(),
-      modelYear: _toInt(j['model_year']),
-      seats: _toInt(j['seats']),
+      modelYear: toInt(j['model_year']),
+      seats: toInt(j['seats']),
       fuelType: j['fuel_type']?.toString(),
       transmission: j['transmission']?.toString(),
-      currentOdometer: _toInt(j['current_odometer']),
+      currentOdometer: toInt(j['current_odometer']),
       status: VehicleStatusX.fromString(j['status']?.toString()),
       imageUrl: j['image_url']?.toString(),
-      createdAt: _toDate(j['created_at']),
+      createdAt: toDate(j['created_at']),
       lastLocationName: j['last_location_name']?.toString(),
-      lastLocationLat: _toDouble(j['last_location_lat']),
-      lastLocationLng: _toDouble(j['last_location_lng']),
-      lastLocationUpdatedAt: _toDate(j['last_location_updated_at']),
+      lastLocationLat: toDouble(j['last_location_lat']),
+      lastLocationLng: toDouble(j['last_location_lng']),
+      lastLocationUpdatedAt: toDate(j['last_location_updated_at']),
     );
   }
 

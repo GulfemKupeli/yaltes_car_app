@@ -63,7 +63,7 @@ class _AdminHomeShellState extends State<AdminHomeShell> {
           color: Theme.of(context).colorScheme.secondary,
           animationDuration: const Duration(milliseconds: 300),
           items: const [
-            const ImageIcon(
+            ImageIcon(
               AssetImage('assets/garage.png'),
               size: 50,
               color: Colors.white,

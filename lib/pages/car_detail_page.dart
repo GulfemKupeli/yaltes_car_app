@@ -36,7 +36,9 @@ class CarDetailPage extends StatelessWidget {
               aspectRatio: 16 / 9,
               child: imgUrl.isEmpty
                   ? Container(
-                      color: Theme.of(context).colorScheme.surfaceVariant,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
                       alignment: Alignment.center,
                       child: const Icon(Icons.directions_car, size: 80),
                     )
@@ -44,7 +46,9 @@ class CarDetailPage extends StatelessWidget {
                       imgUrl,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Container(
-                        color: Theme.of(context).colorScheme.surfaceVariant,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
                         alignment: Alignment.center,
                         child: const Icon(
                           Icons.broken_image_outlined,

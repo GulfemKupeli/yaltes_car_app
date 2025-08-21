@@ -138,7 +138,7 @@ class _CarCard extends StatelessWidget {
               // ---- ÇERÇEVELİ GÖRSEL ----
               Container(
                 decoration: BoxDecoration(
-                  color: cs.surfaceVariant,
+                  color: cs.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 padding: const EdgeInsets.all(6), // ince çerçeve etkisi

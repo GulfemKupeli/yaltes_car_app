@@ -218,7 +218,7 @@ class _AdminEditCarPageState extends State<AdminEditCarPage> {
                 child: Container(
                   height: 190,
                   decoration: BoxDecoration(
-                    color: cs.surfaceVariant,
+                    color: cs.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   alignment: Alignment.center,
@@ -486,7 +486,7 @@ class _DropdownFieldState extends State<_DropdownField> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: DropdownButtonFormField<String>(
-        value: (current != null && widget.items.contains(current))
+        initialValue: (current != null && widget.items.contains(current))
             ? current
             : null,
         items: widget.items

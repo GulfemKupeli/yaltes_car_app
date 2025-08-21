@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "493892626102",
+    "project_id": "yaltes-car-app",
+    "storage_bucket": "yaltes-car-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:493892626102:android:6a7b34a6887214d5ffe817",
+        "android_client_info": {
+          "package_name": "com.example.yaltes_car_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAhjpqyOGT1tK1gX4MZwMprn9vbSDqtkr0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

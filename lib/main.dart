@@ -1,58 +1,90 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:yaltes_car_app/admin/admin_pages/add_vehicle_page.dart';
-import 'package:yaltes_car_app/admin/admin_pages/admin_edit_car_page.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:yaltes_car_app/admin/admin_home_shell.dart';
-import 'package:yaltes_car_app/admin/admin_pages/admin_login_page.dart';
+import 'package:yaltes_car_app/admin/admin_pages/add_vehicle_page.dart';
 import 'package:yaltes_car_app/admin/admin_pages/admin_cars_page.dart';
+import 'package:yaltes_car_app/admin/admin_pages/admin_edit_car_page.dart';
+import 'package:yaltes_car_app/admin/admin_pages/admin_login_page.dart';
 import 'package:yaltes_car_app/features/location/location_picker_page.dart';
 import 'package:yaltes_car_app/models/vehicle.dart';
+import 'package:yaltes_car_app/pages/calendar_page.dart';
 import 'package:yaltes_car_app/pages/car_detail_page.dart';
 import 'package:yaltes_car_app/pages/create_booking_page.dart';
-//import 'package:yaltes_car_app/pages/garage_page.dart';
-import 'package:yaltes_car_app/services/api_client.dart';
-//import 'package:yaltes_car_app/pages/car_detail_page.dart';
 import 'package:yaltes_car_app/pages/home_shell.dart';
+import 'package:yaltes_car_app/pages/login_page.dart';
 import 'package:yaltes_car_app/pages/notifications_page.dart';
 import 'package:yaltes_car_app/pages/settings_page.dart';
-import 'package:yaltes_car_app/pages/login_page.dart';
 import 'package:yaltes_car_app/pages/sign_up_page.dart';
+import 'package:yaltes_car_app/services/api_client.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final api = ApiClient.instance;
 
-  runApp(const MyApp());
-  await api.loadToken();
+  if (defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS) {
+    // await Firebase.initializeApp(
+    //   options: DefaultFirebaseOptions.currentPlatform,
+    // );
+    await _initPush();
+  }
+
+  final api = ApiClient.instance;
+  final loggedIn = await api.loadToken();
+
+  await _initPush();
+
+  runApp(MyApp(initialRoute: loggedIn ? HomeShell.route : LoginPage.route));
+}
+
+Future<void> _initPush() async {
+  if (defaultTargetPlatform != TargetPlatform.android &&
+      defaultTargetPlatform != TargetPlatform.iOS)
+    return;
+
+  final messaging = FirebaseMessaging.instance;
+  await messaging.requestPermission();
+  final token = await messaging.getToken();
+  debugPrint('Push token: $token');
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, this.initialRoute = LoginPage.route});
+  final String initialRoute;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: _buildTheme(),
-      initialRoute: LoginPage.route,
+      initialRoute: initialRoute,
       routes: {
         LoginPage.route: (_) => LoginPage(),
         SignUpPage.route: (_) => SignUpPage(),
         HomeShell.route: (_) => const HomeShell(),
         NotificationsPage.route: (_) => const NotificationsPage(),
         SettingsPage.route: (_) => const SettingsPage(),
-        AdminLoginPage.route: (_) => const AdminLoginPage(),
-        AdminHomeShell.route: (_) => const AdminHomeShell(),
-        AdminCarsPage.route: (context) => const AdminCarsPage(),
-        AdminEditCarPage.route: (_) => const AdminEditCarPage(car: {}),
-        AddVehiclePage.route: (context) => const AddVehiclePage(),
+        CarDetailPage.route: (ctx) {
+          final v = ModalRoute.of(ctx)!.settings.arguments as Vehicle;
+          return CarDetailPage(vehicle: v);
+        },
         CreateBookingPage.route: (ctx) {
           final v = ModalRoute.of(ctx)!.settings.arguments as Vehicle;
           return CreateBookingPage(vehicle: v);
         },
         LocationPickerPage.route: (_) => const LocationPickerPage(),
-        CarDetailPage.route: (context) {
-          final v = ModalRoute.of(context)!.settings.arguments as Vehicle;
-          return CarDetailPage(vehicle: v);
+
+        AdminLoginPage.route: (_) => const AdminLoginPage(),
+        AdminHomeShell.route: (_) => const AdminHomeShell(),
+        AdminCarsPage.route: (_) => const AdminCarsPage(),
+        CalendarPage.route: (_) => const CalendarPage(),
+        AddVehiclePage.route: (_) => const AddVehiclePage(),
+        AdminEditCarPage.route: (ctx) {
+          final args =
+              ModalRoute.of(ctx)!.settings.arguments as Map<String, dynamic>?;
+          return AdminEditCarPage(car: args);
         },
       },
     );
